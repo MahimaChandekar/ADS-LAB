@@ -1,0 +1,116 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define TABLE_SIZE 100
+
+typedef struct {
+    int parent;
+    int rank;
+} DisjointSet;
+
+void makeSet(DisjointSet *ds, int n) {
+    for (int i = 0; i < n; i++) {
+        ds[i].parent = i;
+        ds[i].rank = 0;
+    }
+}
+
+int findSimple(DisjointSet *ds, int x) {
+    if (ds[x].parent == x)
+        return x;
+    return findSimple(ds, ds[x].parent);
+}
+
+int findPathCompression(DisjointSet *ds, int x) {
+    if (ds[x].parent != x)
+        ds[x].parent = findPathCompression(ds, ds[x].parent);
+    return ds[x].parent;
+}
+
+void unionSimple(DisjointSet *ds, int x, int y) {
+    int rootX = findSimple(ds, x);
+    int rootY = findSimple(ds, y);
+    if (rootX != rootY)
+        ds[rootY].parent = rootX;
+}
+
+void unionByRank(DisjointSet *ds, int x, int y) {
+    int rootX = findPathCompression(ds, x);
+    int rootY = findPathCompression(ds, y);
+
+    if (rootX == rootY) return;
+
+    if (ds[rootX].rank < ds[rootY].rank) {
+        ds[rootX].parent = rootY;
+    } else if (ds[rootX].rank > ds[rootY].rank) {
+        ds[rootY].parent = rootX;
+    } else {
+        ds[rootY].parent = rootX;
+        ds[rootX].rank++;
+    }
+}
+
+typedef struct Student {
+    int id;
+    char name[50];
+} Student;
+
+typedef struct Node {
+    Student student;
+    struct Node *next;
+} Node;
+
+Node* hashTable[TABLE_SIZE];
+
+int hashFunction(int id) {
+    return id % TABLE_SIZE;
+}
+
+void insertStudent(int id, const char *name) {
+    int index = hashFunction(id);
+    Node *newNode = (Node*)malloc(sizeof(Node));
+    newNode->student.id = id;
+    strcpy(newNode->student.name, name);
+    newNode->next = hashTable[index];
+    hashTable[index] = newNode;
+}
+
+Student* searchStudent(int id) {
+    int index = hashFunction(id);
+    Node *current = hashTable[index];
+    while (current) {
+        if (current->student.id == id)
+            return &current->student;
+        current = current->next;
+    }
+    return NULL;
+}
+
+int main() {
+
+    int n = 10;
+    DisjointSet ds[n];
+    makeSet(ds, n);
+
+    unionSimple(ds, 1, 2);
+    unionByRank(ds, 2, 3);
+    unionByRank(ds, 4, 5);
+    unionByRank(ds, 3, 5);
+
+    printf("Find(1): %d\n", findPathCompression(ds, 1));
+    printf("Find(5): %d\n", findPathCompression(ds, 5));
+
+    insertStudent(101, "Alice");
+    insertStudent(102, "Bob");
+    insertStudent(205, "Charlie");
+
+    Student *s = searchStudent(102);
+    if (s)
+        printf("Found student: ID=%d, Name=%s\n", s->id, s->name);
+    else
+        printf("Student not found.\n");
+
+    return 0;
+}
+
